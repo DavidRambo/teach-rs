@@ -1,0 +1,2 @@
+* README
+  Exercises for https://github.com/tweedegolf/101-rs, with occasional help from [Andy Balaam][https://video.infosec.exchange/c/andybalaam_lectures/videos]].
