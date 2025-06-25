@@ -19,6 +19,7 @@
 //  - add a method "peek" so that "queue.peek()" returns the same thing as "queue.read()", but leaves the element in the queue
 
 struct RingBuffer {
+    // data: [Box<[u8]>; 16],
     data: [u8; 16],
     start: usize,
     end: usize,
@@ -36,8 +37,14 @@ impl RingBuffer {
     /// This function tries to read a value from the queue and returns Some(value) if this succeeds,
     /// it returns None if the queue was empty
 
+    // fn read(&mut self) -> Option<Box<[u8]>> {
     fn read(&mut self) -> Option<u8> {
-        todo!()
+        if self.start == self.end {
+            return None;
+        }
+        let val = &self.data[self.start];
+        self.start += 1 % self.data.len();
+        Some(val.clone())
     }
 
     /// This function tries to put `value` on the queue; and returns true if this succeeds
@@ -83,5 +90,60 @@ fn main() {
     assert!(queue.write(5));
     for elem in queue {
         println!("{elem}");
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn reading_empty_queue_returns_none() {
+        let mut q = RingBuffer::new();
+        assert_eq!(q.read(), None);
+    }
+
+    #[test]
+    fn read_one_value_from_queue() {
+        let mut q = RingBuffer::new();
+        q.write(1);
+        assert_eq!(q.read(), Some(1));
+        assert_eq!(q.read(), None);
+    }
+
+    #[test]
+    fn read_five_writes() {
+        let mut q = RingBuffer::new();
+        q.write(1);
+        q.write(2);
+        q.write(3);
+        q.write(4);
+        q.write(5);
+        assert_eq!(q.read(), Some(1));
+        assert_eq!(q.read(), Some(2));
+        assert_eq!(q.read(), Some(3));
+        assert_eq!(q.read(), Some(4));
+        assert_eq!(q.read(), Some(5));
+        assert_eq!(q.read(), None);
+    }
+
+    #[test]
+    fn read_write_modulo() {
+        let mut q = RingBuffer::new();
+        q.write(1);
+        q.write(2);
+        q.write(3);
+        q.write(4);
+        q.write(5);
+        assert_eq!(q.read(), Some(1));
+        assert_eq!(q.read(), Some(2));
+        assert_eq!(q.read(), Some(3));
+        assert_eq!(q.read(), Some(4));
+        assert_eq!(q.read(), Some(5));
+        assert_eq!(q.read(), None);
+        assert!(q.write(6));
+        assert!(q.write(7));
+        assert_eq!(q.read(), Some(6));
+        assert_eq!(q.read(), Some(7));
     }
 }
