@@ -20,6 +20,7 @@ enum Expr {
     Summation(Vec<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
+    Sigma(Box<Expr>, Box<Expr>, Box<Expr>),
 }
 
 // inject these two identifiers directly into the current namespace
@@ -43,6 +44,10 @@ fn mul(x: Expr, y: Expr) -> Expr {
 
 fn div(x: Expr, y: Expr) -> Expr {
     Expr::Div(Box::new(x), Box::new(y))
+}
+
+fn sigma(start: Expr, end: Expr, v: Expr) -> Expr {
+    Expr::Sigma(Box::new(start), Box::new(end), Box::new(v))
 }
 
 // ...
@@ -74,6 +79,16 @@ fn eval(expr: &Expr, var: i64) -> Option<i64> {
             }
             acc
         }
+
+        Sigma(s, e, v) => {
+            let start = eval(s, var)?;
+            let end = eval(e, var)?;
+            let mut acc = 0;
+            for step in start..=end {
+                acc += step;
+            }
+            acc
+        }
     };
 
     Some(ans)
@@ -89,12 +104,6 @@ fn main() {
         } else {
             String::from("Error: cannot divide by zero")
         };
-        /* match eval(&expr, value) {
-            Some(num) => {
-                println!("{:?} with Var = {} ==> {}", &expr, value, num);
-            }
-            None => eprintln!("Error: cannot divide by zero"),
-        } */
         println!("{:?} with Var = {} ==> {}", &expr, value, str_ans);
     };
 
@@ -140,8 +149,16 @@ mod test {
         assert_eq!(eval(&div(Const(0), Var), x), Some(0));
         assert_eq!(eval(&div(Var, Const(0)), x), None); // DivByZero error
     }
+
+    #[test]
+    fn test_sigma() {
+        let x = 5;
+        assert_eq!(eval(&sigma(Const(1), Const(5), Var), x), Some(15));
+    }
 }
 
-// If you have time left and want to code more Rust: you can extend this exercise endlessly; one idea would be adding a Sigma(from,to,expr)
-// constructor to Expr which computes the equivalent of (in LaTeX notation) \sum_{Var = from}^{to} expr; i.e. Sigma(Const(1), Const(5), Var) should be
-// equivalent to Summation(vec![Const(1), Const(2), Const(3), Const(4), Const(5)]).
+// If you have time left and want to code more Rust: you can extend this exercise
+// endlessly; one idea would be adding a Sigma(from,to,expr) constructor to Expr which
+// computes the equivalent of (in LaTeX notation) \sum_{Var = from}^{to} expr; i.e.
+// Sigma(Const(1), Const(5), Var) should be equivalent to Summation(vec![Const(1),
+// Const(2), Const(3), Const(4), Const(5)]).
