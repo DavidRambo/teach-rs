@@ -51,7 +51,10 @@ where
 
 impl<T, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
     fn as_ref(&self) -> &[T] {
-        todo!();
+        match self {
+            LocalStorageVec::Stack { buf, len } => &buf[..*len],
+            LocalStorageVec::Heap(v) => v.as_ref(),
+        }
     }
 }
 
@@ -74,26 +77,28 @@ where
         }
     }
 
-    /// Inserts item into index 'loc', shifting values over to one higher index.
-    fn insert(&mut self, loc: usize, item: T) {
-        let mut new_lsv: LocalStorageVec<T, N> = LocalStorageVec::new();
-
+    /// Inserts item into index, shifting values over to one higher index.
+    fn insert(&mut self, index: usize, element: T) {
         match self {
             LocalStorageVec::Stack { buf, len } => {
-                for idx in 0..loc {
-                    new_lsv.push(buf[idx]);
-                }
-                new_lsv.push(item);
-                for idx in loc..N {
-                    new_lsv.push(buf[idx]);
+                if *len >= N {
+                    // Switch to a Vec
+                    let mut v: Vec<T> = Vec::with_capacity(N + 1);
+                    v.extend_from_slice(&buf[..index]);
+                    v.push(element);
+                    v.extend_from_slice(&buf[index..]);
+                    *self = Self::Heap(v);
+                } else {
+                    // Shift index.. over to index+1..
+                    buf.copy_within(index..*len, index + 1);
+                    *len += 1;
+                    buf[index] = element;
                 }
             }
             LocalStorageVec::Heap(v) => {
-                v.insert(loc, item);
+                v.insert(index, element);
             }
         }
-
-        *self = new_lsv;
     }
 }
 
@@ -287,7 +292,7 @@ mod test {
     #[test]
     fn can_view_stack_lsv_as_ref_to_slice() {
         // Given a stack-based LocalStorageVec
-        let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2]);
+        let vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2]);
 
         // When I view it as a slice
         let slice: &[i32] = vec.as_ref();
@@ -296,29 +301,42 @@ mod test {
         assert_eq!(slice, &[0, 1, 2]);
     }
 
+    /// Andy Balaam's test.
+    #[test]
+    fn can_view_heap_lsv_as_ref_to_slice() {
+        // Given a stack-based LocalStorageVec
+        let vec: LocalStorageVec<_, 2> = LocalStorageVec::from([0, 1, 2, 3, 4]);
+
+        // When I view it as a slice
+        let slice: &[i32] = vec.as_ref();
+
+        // Then its contents are in the slice
+        assert_eq!(slice, &[0, 1, 2, 3, 4]);
+    }
+
     // Uncomment me for part D
-    // #[test]
-    // fn it_inserts() {
-    //     let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2]);
-    //     vec.insert(1, 3);
-    //     assert!(matches!(
-    //         vec,
-    //         LocalStorageVec::Stack {
-    //             buf: [0, 3, 1, 2],
-    //             len: 4
-    //         }
-    //     ));
+    #[test]
+    fn it_inserts() {
+        let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2]);
+        vec.insert(1, 3);
+        assert!(matches!(
+            vec,
+            LocalStorageVec::Stack {
+                buf: [0, 3, 1, 2],
+                len: 4
+            }
+        ));
 
-    //     let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2, 3]);
-    //     vec.insert(1, 3);
-    //     assert!(matches!(vec, LocalStorageVec::Heap { .. }));
-    //     // assert_eq!(vec.as_ref(), &[0, 3, 1, 2, 3]);
+        let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2, 3]);
+        vec.insert(1, 3);
+        assert!(matches!(vec, LocalStorageVec::Heap { .. }));
+        // assert_eq!(vec.as_ref(), &[0, 3, 1, 2, 3]);
 
-    //     let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2, 3, 4]);
-    //     vec.insert(1, 3);
-    //     assert!(matches!(vec, LocalStorageVec::Heap { .. }));
-    //     // assert_eq!(vec.as_ref(), &[0, 3, 1, 2, 3, 4])
-    // }
+        let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2, 3, 4]);
+        vec.insert(1, 3);
+        assert!(matches!(vec, LocalStorageVec::Heap { .. }));
+        // assert_eq!(vec.as_ref(), &[0, 3, 1, 2, 3, 4])
+    }
 
     // Uncomment me for part D
     // #[test]
