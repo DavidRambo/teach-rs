@@ -2,6 +2,7 @@
 /// but is moved to the heap to grow larger if needed.
 /// This list is generic over the items it contains as well as the
 /// size of its buffer if it's on the stack.
+#[derive(Debug)]
 pub enum LocalStorageVec<T, const N: usize> {
     // TODO add some variants containing data
     // to make the compiler happy
@@ -57,6 +58,15 @@ impl<T, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
         }
     }
 }
+
+// impl<T, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
+//     fn as_mut(&mut self) -> &mut T {
+//         match self {
+//             LocalStorageVec::Stack { buf, len } => buf.as_mut(),
+//             LocalStorageVec::Heap(v) => v.as_mut(),
+//         }
+//     }
+// }
 
 /// Create a LocalStorageVec from a Vec.
 impl<T, const N: usize> From<Vec<T>> for LocalStorageVec<T, N> {
@@ -158,6 +168,23 @@ where
             }
         }
     }
+
+    /// Removes an indexed item and returns it.
+    fn remove(&mut self, index: usize) -> T {
+        match self {
+            LocalStorageVec::Stack { buf, len } => {
+                if index == *len - 1 {
+                    self.pop().unwrap()
+                } else {
+                    let removed = buf[index];
+                    buf.copy_within((index + 1)..*len, index);
+                    *len -= 1;
+                    removed
+                }
+            }
+            LocalStorageVec::Heap(v) => v.remove(index),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -205,22 +232,22 @@ mod test {
     }
 
     // Uncomment me for part C
-    // #[test]
-    // fn it_as_refs() {
-    //     let vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
-    //     let slice: &[i32] = vec.as_ref();
-    //     assert!(slice.len() == 128);
-    //     let vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
-    //     let slice: &[i32] = vec.as_ref();
-    //     assert!(slice.len() == 128);
+    #[test]
+    fn it_as_refs() {
+        let vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
+        let slice: &[i32] = vec.as_ref();
+        assert!(slice.len() == 128);
+        let vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
+        let slice: &[i32] = vec.as_ref();
+        assert!(slice.len() == 128);
 
-    //     let mut vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
-    //     let slice_mut: &[i32] = vec.as_mut();
-    //     assert!(slice_mut.len() == 128);
-    //     let mut vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
-    //     let slice_mut: &[i32] = vec.as_mut();
-    //     assert!(slice_mut.len() == 128);
-    // }
+        // let mut vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
+        // let slice_mut: &[i32] = vec.as_mut();
+        // assert!(slice_mut.len() == 128);
+        // let mut vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
+        // let slice_mut: &[i32] = vec.as_mut();
+        // assert!(slice_mut.len() == 128);
+    }
 
     // Uncomment me for part D
     #[test]
@@ -339,26 +366,54 @@ mod test {
     }
 
     // Uncomment me for part D
-    // #[test]
-    // fn it_removes() {
-    //     let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2]);
-    //     let elem = vec.remove(1);
-    //     dbg!(&vec);
-    //     assert!(matches!(
-    //         vec,
-    //         LocalStorageVec::Stack {
-    //             buf: [0, 2, _, _],
-    //             len: 2
-    //         }
-    //     ));
-    //     assert_eq!(elem, 1);
-    //
-    //     let mut vec: LocalStorageVec<_, 2> = LocalStorageVec::from([0, 1, 2]);
-    //     let elem = vec.remove(1);
-    //     assert!(matches!(vec, LocalStorageVec::Heap(..)));
-    //     assert_eq!(vec.as_ref(), &[0, 2]);
-    //     assert_eq!(elem, 1);
-    // }
+    #[test]
+    fn it_removes() {
+        let mut vec: LocalStorageVec<_, 4> = LocalStorageVec::from([0, 1, 2]);
+        let elem = vec.remove(1);
+        dbg!(&vec);
+        assert!(matches!(
+            vec,
+            LocalStorageVec::Stack {
+                buf: [0, 2, _, _],
+                len: 2
+            }
+        ));
+        assert_eq!(elem, 1);
+
+        let mut vec: LocalStorageVec<_, 2> = LocalStorageVec::from([0, 1, 2]);
+        let elem = vec.remove(1);
+        assert!(matches!(vec, LocalStorageVec::Heap(..)));
+        assert_eq!(vec.as_ref(), &[0, 2]);
+        assert_eq!(elem, 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn remove_out_of_range_heap_panics() {
+        let mut vec: LocalStorageVec<_, 2> = LocalStorageVec::from([0, 1, 2, 3]);
+        vec.remove(5);
+    }
+
+    #[test]
+    #[should_panic]
+    fn remove_out_of_buffer_stack_panics() {
+        let mut vec: LocalStorageVec<_, 8> = LocalStorageVec::from([0, 1, 2, 3]);
+        vec.remove(5);
+    }
+
+    #[test]
+    fn remove_last_element_heap() {
+        let mut vec: LocalStorageVec<_, 2> = LocalStorageVec::from([0, 1, 2, 3]);
+        let elem = vec.remove(3);
+        assert_eq!(elem, 3);
+    }
+
+    #[test]
+    fn remove_last_element_stack() {
+        let mut vec: LocalStorageVec<_, 8> = LocalStorageVec::from([0, 1, 2, 3]);
+        let elem = vec.remove(3);
+        assert_eq!(elem, 3);
+    }
 
     // Uncomment me for part D
     // #[test]
