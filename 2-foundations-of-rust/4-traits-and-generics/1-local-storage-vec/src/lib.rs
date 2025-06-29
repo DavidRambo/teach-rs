@@ -59,14 +59,14 @@ impl<T, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
     }
 }
 
-// impl<T, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
-//     fn as_mut(&mut self) -> &mut T {
-//         match self {
-//             LocalStorageVec::Stack { buf, len } => buf.as_mut(),
-//             LocalStorageVec::Heap(v) => v.as_mut(),
-//         }
-//     }
-// }
+impl<T, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
+    fn as_mut(&mut self) -> &mut [T] {
+        match self {
+            LocalStorageVec::Stack { buf, len } => buf[..*len].as_mut(),
+            LocalStorageVec::Heap(v) => v.as_mut(),
+        }
+    }
+}
 
 /// Create a LocalStorageVec from a Vec.
 impl<T, const N: usize> From<Vec<T>> for LocalStorageVec<T, N> {
@@ -305,12 +305,12 @@ mod test {
         let slice: &[i32] = vec.as_ref();
         assert!(slice.len() == 128);
 
-        // let mut vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
-        // let slice_mut: &[i32] = vec.as_mut();
-        // assert!(slice_mut.len() == 128);
-        // let mut vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
-        // let slice_mut: &[i32] = vec.as_mut();
-        // assert!(slice_mut.len() == 128);
+        let mut vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
+        let slice_mut: &[i32] = vec.as_mut();
+        assert_eq!(slice_mut.len(), 128);
+        let mut vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
+        let slice_mut: &[i32] = vec.as_mut();
+        assert_eq!(slice_mut.len(), 128);
     }
 
     // Uncomment me for part D
