@@ -110,6 +110,11 @@ where
             }
         }
     }
+
+    /// Consumes self and returns an iterator.
+    fn into_iter(self) -> LocalStorageVecIter<T, N> {
+        LocalStorageVecIter::new(self)
+    }
 }
 
 #[allow(unused)] // Silence warnings since there's no main function calling the methods.
@@ -117,13 +122,6 @@ impl<T, const N: usize> LocalStorageVec<T, N>
 where
     T: Default,
 {
-    fn len(&self) -> usize {
-        match self {
-            LocalStorageVec::Stack { buf: _, len } => *len,
-            LocalStorageVec::Heap(v) => v.len(),
-        }
-    }
-
     fn clear(&mut self) {
         match self {
             LocalStorageVec::Stack { buf: _, len } => *len = 0,
@@ -137,6 +135,13 @@ impl<T, const N: usize> LocalStorageVec<T, N>
 where
     T: Copy,
 {
+    fn len(&self) -> usize {
+        match self {
+            LocalStorageVec::Stack { buf: _, len } => *len,
+            LocalStorageVec::Heap(v) => v.len(),
+        }
+    }
+
     /// Adds the item to the end of the LSV.
     fn push(&mut self, item: T) {
         match self {
@@ -192,6 +197,58 @@ where
             LocalStorageVec::Heap(v) => v.remove(index),
         }
     }
+}
+
+pub struct LocalStorageVecIter<T, const N: usize> {
+    vec: LocalStorageVec<T, N>,
+    counter: usize,
+}
+
+impl<T, const N: usize> LocalStorageVecIter<T, N>
+where
+    T: Default + Copy,
+{
+    fn new(vec: LocalStorageVec<T, N>) -> Self {
+        Self { vec, counter: 0 }
+    }
+}
+
+impl<T, const N: usize> Iterator for LocalStorageVecIter<T, N>
+where
+    T: Copy,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.counter == self.vec.len() {
+            return None;
+        }
+
+        let ret = self.vec.as_ref()[self.counter]; // Here's why it needs the Copy trait.
+        self.counter += 1;
+        Some(ret)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.counter, Some(self.vec.len()))
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        if self.counter + n >= self.vec.len() {
+            self.counter = self.vec.len();
+            return None;
+        }
+        self.counter += n;
+        Some(self.vec.as_ref()[self.counter])
+    }
+
+    // fn last(&mut self) -> Option<Self::Item> {
+    //     if self.counter == self.vec.len() {
+    //         return None;
+    //     }
+    //     self.counter = self.vec.len();
+    //     Some(self.vec.as_ref()[self.vec.len() - 1])
+    // }
 }
 
 #[cfg(test)]
@@ -450,22 +507,33 @@ mod test {
     }
 
     // Uncomment me for part E
-    // #[test]
-    // fn it_iters() {
-    //     let vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 32]);
-    //     let mut iter = vec.into_iter();
-    //     for item in &mut iter {
-    //         assert_eq!(item, 0);
-    //     }
-    //     assert_eq!(iter.next(), None);
-    //
-    //     let vec: LocalStorageVec<_, 128> = LocalStorageVec::from(vec![0; 128]);
-    //     let mut iter = vec.into_iter();
-    //     for item in &mut iter {
-    //         assert_eq!(item, 0);
-    //     }
-    //     assert_eq!(iter.next(), None);
-    // }
+    #[test]
+    fn it_iters() {
+        let vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 32]);
+        let mut iter = vec.into_iter();
+        for item in &mut iter {
+            assert_eq!(item, 0);
+        }
+        assert_eq!(iter.next(), None);
+
+        let vec: LocalStorageVec<_, 128> = LocalStorageVec::from(vec![0; 128]);
+        let mut iter = vec.into_iter();
+        for item in &mut iter {
+            assert_eq!(item, 0);
+        }
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn iter_size_hint() {
+        let vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 32]);
+        let mut iter = vec.into_iter();
+        iter.next();
+        iter.next();
+        let hint = iter.size_hint();
+        assert_eq!(hint.0, 2);
+        assert_eq!(hint.1, Some(32));
+    }
 
     // Uncomment me for part F
     // #[test]
