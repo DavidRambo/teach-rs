@@ -123,6 +123,13 @@ where
             LocalStorageVec::Heap(v) => v.len(),
         }
     }
+
+    fn clear(&mut self) {
+        match self {
+            LocalStorageVec::Stack { buf: _, len } => *len = 0,
+            LocalStorageVec::Heap(v) => v.clear(),
+        }
+    }
 }
 
 #[allow(unused)] // Silence warnings since there's no main function calling the methods.
@@ -416,18 +423,31 @@ mod test {
     }
 
     // Uncomment me for part D
-    // #[test]
-    // fn it_clears() {
-    //     let mut vec: LocalStorageVec<_, 10> = LocalStorageVec::from([0, 1, 2, 3]);
-    //     assert!(matches!(vec, LocalStorageVec::Stack { buf: _, len: 4 }));
-    //     vec.clear();
-    //     assert_eq!(vec.len(), 0);
-    //
-    //     let mut vec: LocalStorageVec<_, 3> = LocalStorageVec::from([0, 1, 2, 3]);
-    //     assert!(matches!(vec, LocalStorageVec::Heap(_)));
-    //     vec.clear();
-    //     assert_eq!(vec.len(), 0);
-    // }
+    #[test]
+    fn it_clears() {
+        let mut vec: LocalStorageVec<_, 10> = LocalStorageVec::from([0, 1, 2, 3]);
+        assert!(matches!(vec, LocalStorageVec::Stack { buf: _, len: 4 }));
+        vec.clear();
+        assert_eq!(vec.len(), 0);
+
+        let mut vec: LocalStorageVec<_, 3> = LocalStorageVec::from([0, 1, 2, 3]);
+        assert!(matches!(vec, LocalStorageVec::Heap(_)));
+        vec.clear();
+        assert_eq!(vec.len(), 0);
+    }
+
+    #[test]
+    fn clear_push_and_pop() {
+        let mut vec: LocalStorageVec<_, 10> = LocalStorageVec::from([0, 1, 2, 3]);
+        assert!(matches!(vec, LocalStorageVec::Stack { buf: _, len: 4 }));
+        vec.clear();
+        assert_eq!(vec.len(), 0);
+
+        vec.push(7);
+        assert_eq!(vec.len(), 1);
+        let elem = vec.remove(0);
+        assert_eq!(elem, 7);
+    }
 
     // Uncomment me for part E
     // #[test]
