@@ -181,41 +181,53 @@ where
     }
 }
 
-impl<T, const N: usize> Index<usize> for LocalStorageVec<T, N> {
-    type Output = T; // Associated type.
+/// Define a trait that describes something that can index into a LSV.
+trait LocalStorageVecIndex<T> {}
 
-    fn index(&self, idx: usize) -> &Self::Output {
-        // match self {
-        //     LocalStorageVec::Stack { buf, len: _ } => &buf[idx],
-        //     LocalStorageVec::Heap(v) => &v[idx],
-        // }
+/// usize and these Range<> types can index into a LSV.
+impl<T> LocalStorageVecIndex<T> for usize {}
+impl<T> LocalStorageVecIndex<T> for RangeFrom<usize> {}
+impl<T> LocalStorageVecIndex<T> for RangeTo<usize> {}
+impl<T> LocalStorageVecIndex<T> for Range<usize> {}
+
+impl<I, T, const N: usize> Index<I> for LocalStorageVec<T, N>
+where
+    I: LocalStorageVecIndex<T>, // e.g. usize or Range<usize> (see impl just above).
+    [T]: Index<I>,              // A slice of T is indexable by I (again, e.g. usize or a Range)
+{
+    // Index<I> provides an output type, so we
+    type Output = <[T] as Index<I>>::Output;
+
+    fn index(&self, idx: I) -> &Self::Output {
         &self.as_ref()[idx]
     }
 }
 
-impl<T, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, N> {
-    type Output = [T]; // Associated type.
+// Old, redudant code below, replaced by generic trait-based code above:
+//
+// impl<T, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, N> {
+//     type Output = [T]; // Associated type.
 
-    fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
-        &self.as_ref()[range]
-    }
-}
+//     fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
+//         &self.as_ref()[range]
+//     }
+// }
 
-impl<T, const N: usize> Index<RangeTo<usize>> for LocalStorageVec<T, N> {
-    type Output = [T]; // Associated type.
+// impl<T, const N: usize> Index<RangeTo<usize>> for LocalStorageVec<T, N> {
+//     type Output = [T]; // Associated type.
 
-    fn index(&self, range: RangeTo<usize>) -> &Self::Output {
-        &self.as_ref()[range]
-    }
-}
+//     fn index(&self, range: RangeTo<usize>) -> &Self::Output {
+//         &self.as_ref()[range]
+//     }
+// }
 
-impl<T, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
-    type Output = [T]; // Associated type.
+// impl<T, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
+//     type Output = [T]; // Associated type.
 
-    fn index(&self, range: Range<usize>) -> &Self::Output {
-        &self.as_ref()[range]
-    }
-}
+//     fn index(&self, range: Range<usize>) -> &Self::Output {
+//         &self.as_ref()[range]
+//     }
+// }
 
 #[allow(unused)]
 impl<T, const N: usize> LocalStorageVec<T, N> {
