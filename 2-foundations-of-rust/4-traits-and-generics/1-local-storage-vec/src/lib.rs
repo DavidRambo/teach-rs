@@ -1,3 +1,4 @@
+use std::ops::{Index, Range, RangeFrom, RangeTo};
 /// A growable, generic list that resides on the stack if it's small,
 /// but is moved to the heap to grow larger if needed.
 /// This list is generic over the items it contains as well as the
@@ -86,7 +87,71 @@ where
             len: 0,
         }
     }
+}
 
+#[allow(unused)] // Silence warnings since there's no main function calling the methods.
+impl<T, const N: usize> LocalStorageVec<T, N>
+where
+    T: Default,
+{
+    fn clear(&mut self) {
+        match self {
+            LocalStorageVec::Stack { buf: _, len } => *len = 0,
+            LocalStorageVec::Heap(v) => v.clear(),
+        }
+    }
+}
+
+#[allow(unused)] // Silence warnings since there's no main function calling the methods.
+impl<T, const N: usize> LocalStorageVec<T, N>
+where
+    T: Clone,
+{
+    /// Adds the item to the end of the LSV.
+    fn push(&mut self, item: T) {
+        match self {
+            LocalStorageVec::Stack { buf, len } => {
+                if *len < N {
+                    buf[*len] = item;
+                    *len += 1;
+                } else {
+                    let mut v: Vec<T> = Vec::with_capacity(N + 1);
+                    v.extend_from_slice(buf);
+                    v.push(item);
+                    *self = Self::Heap(v);
+                }
+            }
+            LocalStorageVec::Heap(v) => v.push(item),
+        }
+    }
+
+    /// Removes the last item and returns it.
+    fn pop(&mut self) -> Option<T> {
+        match self {
+            LocalStorageVec::Stack { buf, len } => {
+                if *len == 0 {
+                    return None;
+                } else {
+                    *len -= 1;
+                    Some(buf[*len].clone())
+                }
+            }
+            LocalStorageVec::Heap(v) => {
+                if v.is_empty() {
+                    return None;
+                } else {
+                    v.pop()
+                }
+            }
+        }
+    }
+}
+
+#[allow(unused)] // Silence warnings since there's no main function calling the methods.
+impl<T, const N: usize> LocalStorageVec<T, N>
+where
+    T: Copy,
+{
     /// Inserts item into index, shifting values over to one higher index.
     fn insert(&mut self, index: usize, element: T) {
         match self {
@@ -111,76 +176,6 @@ where
         }
     }
 
-    /// Consumes self and returns an iterator.
-    fn into_iter(self) -> LocalStorageVecIter<T, N> {
-        LocalStorageVecIter::new(self)
-    }
-}
-
-#[allow(unused)] // Silence warnings since there's no main function calling the methods.
-impl<T, const N: usize> LocalStorageVec<T, N>
-where
-    T: Default,
-{
-    fn clear(&mut self) {
-        match self {
-            LocalStorageVec::Stack { buf: _, len } => *len = 0,
-            LocalStorageVec::Heap(v) => v.clear(),
-        }
-    }
-}
-
-#[allow(unused)] // Silence warnings since there's no main function calling the methods.
-impl<T, const N: usize> LocalStorageVec<T, N>
-where
-    T: Copy,
-{
-    fn len(&self) -> usize {
-        match self {
-            LocalStorageVec::Stack { buf: _, len } => *len,
-            LocalStorageVec::Heap(v) => v.len(),
-        }
-    }
-
-    /// Adds the item to the end of the LSV.
-    fn push(&mut self, item: T) {
-        match self {
-            LocalStorageVec::Stack { buf, len } => {
-                if *len < N {
-                    buf[*len] = item;
-                    *len += 1;
-                } else {
-                    let mut v: Vec<T> = Vec::with_capacity(N + 1);
-                    v.extend(buf.iter());
-                    v.push(item);
-                    *self = Self::Heap(v);
-                }
-            }
-            LocalStorageVec::Heap(v) => v.push(item),
-        }
-    }
-
-    /// Removes the last item and returns it.
-    fn pop(&mut self) -> Option<T> {
-        match self {
-            LocalStorageVec::Stack { buf, len } => {
-                if *len == 0 {
-                    return None;
-                } else {
-                    *len -= 1;
-                    Some(buf[*len])
-                }
-            }
-            LocalStorageVec::Heap(v) => {
-                if v.is_empty() {
-                    return None;
-                } else {
-                    v.pop()
-                }
-            }
-        }
-    }
-
     /// Removes an indexed item and returns it.
     fn remove(&mut self, index: usize) -> T {
         match self {
@@ -199,15 +194,64 @@ where
     }
 }
 
+impl<T, const N: usize> Index<usize> for LocalStorageVec<T, N> {
+    type Output = T; // Associated type.
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        // match self {
+        //     LocalStorageVec::Stack { buf, len: _ } => &buf[idx],
+        //     LocalStorageVec::Heap(v) => &v[idx],
+        // }
+        &self.as_ref()[idx]
+    }
+}
+
+impl<T, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, N> {
+    type Output = [T]; // Associated type.
+
+    fn index(&self, range: RangeFrom<usize>) -> &Self::Output {
+        &self.as_ref()[range]
+    }
+}
+
+impl<T, const N: usize> Index<RangeTo<usize>> for LocalStorageVec<T, N> {
+    type Output = [T]; // Associated type.
+
+    fn index(&self, range: RangeTo<usize>) -> &Self::Output {
+        &self.as_ref()[range]
+    }
+}
+
+impl<T, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
+    type Output = [T]; // Associated type.
+
+    fn index(&self, range: Range<usize>) -> &Self::Output {
+        &self.as_ref()[range]
+    }
+}
+
+#[allow(unused)]
+impl<T, const N: usize> LocalStorageVec<T, N> {
+    fn len(&self) -> usize {
+        match self {
+            LocalStorageVec::Stack { buf: _, len } => *len,
+            LocalStorageVec::Heap(v) => v.len(),
+        }
+    }
+
+    /// Consumes self and returns an iterator.
+    fn into_iter(self) -> LocalStorageVecIter<T, N> {
+        LocalStorageVecIter::new(self)
+    }
+}
+
+/// Iterable struct for the LSV.
 pub struct LocalStorageVecIter<T, const N: usize> {
     vec: LocalStorageVec<T, N>,
     counter: usize,
 }
 
-impl<T, const N: usize> LocalStorageVecIter<T, N>
-where
-    T: Default + Copy,
-{
+impl<T, const N: usize> LocalStorageVecIter<T, N> {
     fn new(vec: LocalStorageVec<T, N>) -> Self {
         Self { vec, counter: 0 }
     }
@@ -306,10 +350,10 @@ mod test {
         assert!(slice.len() == 128);
 
         let mut vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
-        let slice_mut: &[i32] = vec.as_mut();
+        let slice_mut: &mut [i32] = vec.as_mut();
         assert_eq!(slice_mut.len(), 128);
         let mut vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
-        let slice_mut: &[i32] = vec.as_mut();
+        let slice_mut: &mut [i32] = vec.as_mut();
         assert_eq!(slice_mut.len(), 128);
     }
 
@@ -536,14 +580,14 @@ mod test {
     }
 
     // Uncomment me for part F
-    // #[test]
-    // fn it_indexes() {
-    //     let vec: LocalStorageVec<i32, 10> = LocalStorageVec::from([0, 1, 2, 3, 4, 5]);
-    //     assert_eq!(vec[1], 1);
-    //     assert_eq!(vec[..2], [0, 1]);
-    //     assert_eq!(vec[4..], [4, 5]);
-    //     assert_eq!(vec[1..3], [1, 2]);
-    // }
+    #[test]
+    fn it_indexes() {
+        let vec: LocalStorageVec<i32, 10> = LocalStorageVec::from([0, 1, 2, 3, 4, 5]);
+        assert_eq!(vec[1], 1);
+        assert_eq!(vec[..2], [0, 1]);
+        assert_eq!(vec[4..], [4, 5]);
+        assert_eq!(vec[1..3], [1, 2]);
+    }
 
     // Uncomment me for part H
     // #[test]
