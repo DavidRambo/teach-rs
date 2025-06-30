@@ -92,19 +92,6 @@ where
 #[allow(unused)] // Silence warnings since there's no main function calling the methods.
 impl<T, const N: usize> LocalStorageVec<T, N>
 where
-    T: Default,
-{
-    fn clear(&mut self) {
-        match self {
-            LocalStorageVec::Stack { buf: _, len } => *len = 0,
-            LocalStorageVec::Heap(v) => v.clear(),
-        }
-    }
-}
-
-#[allow(unused)] // Silence warnings since there's no main function calling the methods.
-impl<T, const N: usize> LocalStorageVec<T, N>
-where
     T: Clone,
 {
     /// Adds the item to the end of the LSV.
@@ -236,6 +223,13 @@ impl<T, const N: usize> LocalStorageVec<T, N> {
         match self {
             LocalStorageVec::Stack { buf: _, len } => *len,
             LocalStorageVec::Heap(v) => v.len(),
+        }
+    }
+
+    fn clear(&mut self) {
+        match self {
+            LocalStorageVec::Stack { buf: _, len } => *len = 0,
+            LocalStorageVec::Heap(v) => v.clear(),
         }
     }
 
