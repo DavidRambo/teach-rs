@@ -237,6 +237,32 @@ impl<T, const N: usize> LocalStorageVec<T, N> {
     fn into_iter(self) -> LocalStorageVecIter<T, N> {
         LocalStorageVecIter::new(self)
     }
+
+    /// Borrowing Iterator, which uses an immutable reference to the LSV.
+    fn iter<'a>(&self) -> LocalStorageVecBorrowIter<T, N> {
+        LocalStorageVecBorrowIter::new(&self)
+    }
+}
+
+#[allow(unused)]
+pub struct LocalStorageVecBorrowIter<'a, T: 'a, const N: usize> {
+    slice_ref: core::slice::Iter<'a, T>,
+}
+
+impl<'a, T, const N: usize> LocalStorageVecBorrowIter<'a, T, N> {
+    fn new(vec: &'a LocalStorageVec<T, N>) -> Self {
+        Self {
+            slice_ref: vec.as_ref().iter(),
+        }
+    }
+}
+
+impl<'a, T, const N: usize> Iterator for LocalStorageVecBorrowIter<'a, T, N> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.slice_ref.next()
+    }
 }
 
 /// Iterable struct for the LSV.
@@ -584,21 +610,21 @@ mod test {
     }
 
     // Uncomment me for part H
-    // #[test]
-    // fn it_borrowing_iters() {
-    //     let vec: LocalStorageVec<String, 10> = LocalStorageVec::from([
-    //         "0".to_owned(),
-    //         "1".to_owned(),
-    //         "2".to_owned(),
-    //         "3".to_owned(),
-    //         "4".to_owned(),
-    //         "5".to_owned(),
-    //     ]);
-    //     let iter = vec.iter();
-    //     for _ in iter {}
-    //     // This requires the `vec` not to be consumed by the call to `iter()`
-    //     drop(vec);
-    // }
+    #[test]
+    fn it_borrowing_iters() {
+        let vec: LocalStorageVec<String, 10> = LocalStorageVec::from([
+            "0".to_owned(),
+            "1".to_owned(),
+            "2".to_owned(),
+            "3".to_owned(),
+            "4".to_owned(),
+            "5".to_owned(),
+        ]);
+        let iter = vec.iter();
+        for _ in iter {}
+        // This requires the `vec` not to be consumed by the call to `iter()`
+        drop(vec);
+    }
 
     // Uncomment me for part J
     // #[test]
