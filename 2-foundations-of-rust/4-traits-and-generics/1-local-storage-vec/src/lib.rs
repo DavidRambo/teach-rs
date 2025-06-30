@@ -327,6 +327,20 @@ where
     // }
 }
 
+impl<T, const N: usize> std::ops::Deref for LocalStorageVec<T, N> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        <Self as AsRef<[T]>>::as_ref(self)
+    }
+}
+
+impl<T, const N: usize> std::ops::DerefMut for LocalStorageVec<T, N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        <Self as AsMut<[T]>>::as_mut(self)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::LocalStorageVec;
@@ -639,16 +653,16 @@ mod test {
     }
 
     // Uncomment me for part J
-    // #[test]
-    // fn it_derefs() {
-    //     use std::ops::{Deref, DerefMut};
-    //     let vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
-    //     // `chunks` is a method that's defined for slices `[T]`, that we can use thanks to `Deref`
-    //     let chunks = vec.chunks(4);
-    //     let slice: &[_] = vec.deref();
-    //
-    //     let mut vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
-    //     let chunks = vec.chunks_mut(4);
-    //     let slice: &mut [_] = vec.deref_mut();
-    // }
+    #[test]
+    fn it_derefs() {
+        use std::ops::{Deref, DerefMut};
+        let vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
+        // `chunks` is a method that's defined for slices `[T]`, that we can use thanks to `Deref`
+        let _chunks = vec.chunks(4);
+        let _slice: &[_] = vec.deref();
+
+        let mut vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
+        let _chunks = vec.chunks_mut(4);
+        let _slice: &mut [_] = vec.deref_mut();
+    }
 }
