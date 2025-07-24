@@ -1,15 +1,14 @@
+use std::borrow::Cow;
+
 /// Very naive implementation of FizzBuzz
-pub fn fizz_buzz(i: u32) -> String {
-    if i % 3 == 0 {
-        if i % 5 == 0 {
-            "FizzBuzz".to_owned()
-        } else {
-            "Fizz".to_owned()
-        }
-    } else if i % 5 == 0 {
-        "Buzz".to_owned()
-    } else {
-        format!("{i}")
+// Idea: instead of outputting a String, pass in a reference to something that
+// can hold the result. Perhaps treat it as bytes? But does the length need to be known?
+pub fn fizz_buzz(i: u32) -> Cow<'static, str> {
+    match (i % 3 == 0, i % 5 == 0) {
+        (true, true) => "FizzBuzz".into(),
+        (true, false) => "Fizz".into(),
+        (false, true) => "Buzz".into(),
+        (false, false) => i.to_string().into(),
     }
 }
 
