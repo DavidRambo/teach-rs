@@ -17,3 +17,15 @@ pub fn fizz_buzz(i: u32) -> String {
 // to compare.
 // You can use the `include_str!()` macro to include file
 // contents as `&str` in your artifact.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_out_file() {
+        let answers = include_str!("../fizzbuzz.out").lines();
+        for (ln, ans) in answers.enumerate() {
+            assert_eq!(fizz_buzz(1 + ln as u32), ans);
+        }
+    }
+}
