@@ -15,12 +15,14 @@
 use std::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
+
+use atomic_wait::{wait, wake_one};
 
 struct Mutex<T> {
     cell: UnsafeCell<T>,
-    locked: AtomicBool,
+    state: AtomicU32,
 }
 
 // TODO: implement Send for Mutex<T>.
@@ -45,25 +47,28 @@ impl<T> Mutex<T> {
     pub fn new(value: T) -> Self {
         Mutex {
             cell: UnsafeCell::new(value),
-            locked: AtomicBool::new(false),
+            state: AtomicU32::new(0),
         }
     }
 
-    fn block_until_you_lock(&self) {
-        // loop until `locked` becomes false, then set it to `true`
-        while self.locked.swap(true, Ordering::Acquire) {
-            // a hint to the OS that it should maybe prioritise other threads
-            std::hint::spin_loop();
-        }
-    }
+    // fn block_until_you_lock(&self) {
+    //     // loop until `locked` becomes false, then set it to `true`
+    //     while self.state.swap(1, Ordering::Acquire) {
+    //         // a hint to the OS that it should maybe prioritise other threads
+    //         std::hint::spin_loop();
+    //     }
+    // }
 
     fn unlock(&self) {
-        self.locked.store(false, Ordering::Release);
+        self.state.store(0, Ordering::Release);
     }
 
-    pub fn lock(&self) -> MutexGuard<T> {
+    pub fn lock(&self) -> MutexGuard<'_, T> {
         // TODO: implement lock()
-        self.block_until_you_lock();
+        // self.block_until_you_lock();
+        while self.state.swap(1, Ordering::Acquire) == 1 {
+            wait(&self.state, 1);
+        }
         MutexGuard { mutex: self }
     }
 
@@ -108,6 +113,7 @@ impl<T> DerefMut for MutexGuard<'_, T> {
 impl<T> Drop for MutexGuard<'_, T> {
     fn drop(&mut self) {
         self.mutex.unlock();
+        wake_one(&self.mutex.state);
     }
 }
 
